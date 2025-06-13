@@ -290,28 +290,10 @@
       resultText.textContent = `${names[sortedProfessions[0][0]]}, ${names[sortedProfessions[1][0]]}`;
       document.getElementById("quizForm").classList.add("hidden");
       resultContainer.classList.remove("hidden");
+    }  // Закрывающая скобка для showResult
 
-      // --- ГЕНЕРАЦИЯ ПРОМПТА ДЛЯ LEONARDO AI ---
-      let promptKeywords = [];
-      // Собираем все ключевые слова из выбранных ответов
-      for (const key in selectedAnswersKeywords) {
-        promptKeywords.push(selectedAnswersKeywords[key]);
-      }
-
-      // Определяем две лучшие профессии для включения в промпт
-      const topProfession1 = names[sortedProfessions[0][0]];
-      const topProfession2 = names[sortedProfessions[1][0]];
-
-      // Пример промпта: можно сделать его более сложным
-      const finalPrompt = `A portrait of a person who is a blend of a ${topProfession1} and a ${topProfession2}, depicted with elements related to their job roles. Include concepts like: ${promptKeywords.join(', ')}. Stylized, highly detailed, professional, concept art.`;
-
-      // Сохраняем сгенерированный промпт в localStorage
-      localStorage.setItem('leonardoAiPrompt', finalPrompt);
-    }
-
-    // Инициализация
-    renderQuestion(currentQuestionIndex);
-  </script>
-
+    // Инициализация первого вопроса
+    renderQuestion(currentQuestionIndex);
+  </script>
 </body>
 </html>
