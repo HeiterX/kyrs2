@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Генерация образа — IT-Профориентатор</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Дополнительные стили, если Tailwind CSS не покрывает все нюансы */
+    #result img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 0.75rem; /* rounded-xl */
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+      margin-top: 10px;
+    }
+    /* Улучшим центрирование и отступы внутри #result */
+    #result {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100px; /* Чтобы сообщения статуса не "прыгали" сильно */
+      padding: 1.5rem; /* p-6 */
+    }
+    .result-card {
+      background-color: #f9fafb; /* bg-gray-50 */
+      border: 1px solid #d1d5db; /* border-gray-300 */
+      border-radius: 0.75rem; /* rounded-xl */
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* shadow-md */
+      padding: 1.5rem; /* p-6 */
+      margin-bottom: 1.25rem; /* mb-5 */
+      width: 100%;
+      max-width: 40rem; /* max-w-2xl, 600px */
+      text-align: center;
+      color: #4b5563; /* text-gray-700 */
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-800 to-blue-600 text-white min-h-screen flex items-center justify-center px-4">
+
+  <div class="bg-white shadow-xl rounded-2xl p-8 max-w-2xl w-full">
+    <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Генерация изображения Leonardo AI</h2>
+
+    <label for="imageUpload" class="block mb-5 font-semibold text-gray-700">Загрузить свою фотографию (необязательно, для Image-to-Image):</label>
+    <input type="file" id="imageUpload" accept="image/*" class="mb-8 p-2 border border-gray-300 rounded-lg w-full text-gray-700 bg-gray-50">
+
+        <button id="generateBtn" class="bg-indigo-600 text-white px-6 py-3 rounded-xl shadow-md hover:bg-indigo-700 transition duration-200">Сгенерировать</button>
+
+    <div id="result" class="mt-8 bg-gray-50 rounded-xl shadow-md text-center text-gray-700">
+      Здесь появится результат генерации.
+    </div>
+  </div>
+
+  <script>
+    // ==========================================================
+    // ВСТАВЬТЕ СЮДА ВАШ API-КЛЮЧ LEONARDO AI
+    // Получить ключ можно на сайте Leonardo AI в разделе API.
+    const API_KEY = '7b625e89-6de4-4899-8fe5-fcb9bd55173d';  // ОБЯЗАТЕЛЬНО ЗАМЕНИТЕ НА СВОЙ API-КЛЮЧ!
+    // ==========================================================
+    
+    // Эндпоинт для инициирования генерации
+    const GENERATIONS_API_URL = 'https://cloud.leonardo.ai/api/rest/v1/generations';
+    
+    // ЭНДПОИНТ ДЛЯ ЗАГРУЗКИ ИЗОБРАЖЕНИЯ
+    const UPLOAD_INIT_IMAGE_URL = 'https://cloud.leonardo.ai/api/rest/v1/init-image'; 
+
+    // Переменная для хранения промпта, полученного из localStorage
+    let storedPromptFromTest = '';
+
+    // ---- НОВОЕ: Загружаем промпт из localStorage при загрузке страницы ----
+    document.addEventListener('DOMContentLoaded', () => {
+      const generateBtn = document.getElementById('generateBtn');
+      const resultDiv = document.getElementById('result');
+
+      storedPromptFromTest = localStorage.getItem('leonardoAiPrompt');
+
+      if (storedPromptFromTest) {
+        resultDiv.innerHTML = '<div class="result-card">Запрос успешно загружен из теста. Нажмите "Сгенерировать".</div>';
+        // Опционально: очистите localStorage после использования, если вам не нужно, чтобы промпт сохранялся при каждом открытии страницы
+        // localStorage.removeItem('leonardoAiPrompt'); 
+      } else {
+        resultDiv.innerHTML = '<div class="result-card">Ошибка: Запрос из теста не найден. Пожалуйста, вернитесь к тесту.</div>';
+        generateBtn.disabled = true; // Деактивируем кнопку, если нет промпта
+        generateBtn.classList.add('opacity-50', 'cursor-not-allowed'); // Добавляем стили для деактивированной кнопки
+      }
+    });
+    // -------------------------------------------------------------------
+
+    document.getElementById('generateBtn').addEventListener('click', async () => {
+      const resultDiv = document.getElementById('result');
+      const imageUploadInput = document.getElementById('imageUpload');
+
+      // Теперь userPrompt берется из переменной storedPromptFromTest
+      const userPrompt = storedPromptFromTest.trim();
+      const imageFile = imageUploadInput.files[0];
+
+      // Дополнительная проверка на пустой промпт
+      if (!userPrompt) {
+        resultDiv.innerHTML = '<div class="result-card">Ошибка: Сгенерированный запрос пуст или отсутствует. Вернитесь к тесту.</div>';
+        return;
+      }
+
+      if (!userPrompt && !imageFile) {
+        resultDiv.innerHTML = '<div class="result-card">Пожалуйста, введите текстовый запрос ИЛИ загрузите изображение.</div>';
+        return;
+      }
+
+      resultDiv.innerHTML = '<div class="result-card">Подготовка к генерации...</div>';
+
+      let pollInterval;
+      let initImageId = null;
+
+      try {
+        if (imageFile) {
+          resultDiv.innerHTML = '<div class="result-card">Загрузка изображения на Leonardo AI...</div>';
+
+          const uploadRequestPayload = {
+            extension: imageFile.name.split('.').pop().toLowerCase()
+          };
+
+          const uploadInitResponse = await fetch(UPLOAD_INIT_IMAGE_URL, {
+            method: 'POST',
+            headers: {
+              'accept': 'application/json',
+              'authorization': `Bearer ${API_KEY}`,
+              'content-type': 'application/json'
+            },
+            body: JSON.stringify(uploadRequestPayload)
+          });
+
+          // !!! Добавлена проверка на uploadInitResponse.ok и обработка ошибок
+          if (!uploadInitResponse.ok) {
+            const errorData = await uploadInitResponse.json();
+            resultDiv.innerHTML = `<div class="result-card">Ошибка при запросе на загрузку изображения: ${JSON.stringify(errorData.error || errorData, null, 2)}</div>`;
+            console.error('Ошибка при запросе на загрузку изображения:', errorData);
+            return;
+          }
+
+          const uploadInitData = await uploadInitResponse.json();
+          // !!! Добавлена проверка на наличие необходимых полей
+          if (!uploadInitData || !uploadInitData.uploadInitImage || !uploadInitData.uploadInitImage.url || !uploadInitData.uploadInitImage.fields) {
+              resultDiv.innerHTML = '<div class="result-card">Ошибка: Не удалось получить URL или поля для загрузки изображения.</div>';
+              console.error('Неполный ответ на запрос загрузки:', uploadInitData);
+              return;
+          }
+
+
+          const presignedUrl = uploadInitData.uploadInitImage.url;
+          const fields = JSON.parse(uploadInitData.uploadInitImage.fields);
+          initImageId = uploadInitData.uploadInitImage.id;
+
+          const formData = new FormData();
+          for (const key in fields) {
+            formData.append(key, fields[key]);
+          }
+          formData.append('file', imageFile);
+
+          try {
+            const actualUploadResponse = await fetch(presignedUrl, {
+              method: 'POST',
+              body: formData
+            });
+
+            if (!actualUploadResponse.ok && actualUploadResponse.status === 0) {
+              // Это часто происходит с S3 и CORS, но загрузка может быть успешной
+              resultDiv.innerHTML = '<div class="result-card">Изображение успешно загружено (возможно, с предупреждением CORS). Инициируем генерацию...</div>';
+            } else if (!actualUploadResponse.ok) {
+              const errorText = await actualUploadResponse.text();
+              resultDiv.innerHTML = `<div class="result-card">Ошибка загрузки на S3: ${actualUploadResponse.status} - ${errorText}</div>`;
+              return;
+            } else {
+              resultDiv.innerHTML = '<div class="result-card">Изображение успешно загружено. Инициируем генерацию...</div>';
+            }
+          } catch (s3UploadError) {
+            if (s3UploadError instanceof TypeError && s3UploadError.message === 'Failed to fetch' && initImageId) {
+              resultDiv.innerHTML = '<div class="result-card">Изображение загружено (ошибка CORS). Инициируем генерацию...</div>';
+            } else {
+              resultDiv.innerHTML = `<div class="result-card">Ошибка при загрузке изображения: ${s3UploadError.message}</div>`;
+              return;
+            }
+          }
+        } else {
+          resultDiv.innerHTML = '<div class="result-card">Инициируем текстовую генерацию...</div>';
+        }
+
+        const generationPayload = {
+          modelId: "aa77f04e-3eec-4034-9c07-d0f619684628",
+          contrast: 3.5,
+          prompt: userPrompt, // Используем промпт, полученный из localStorage
+          negative_prompt: "blurry, low quality, deformed, ugly, disfigured, poor quality, bad anatomy, bad facial features, extra limbs, missing limbs, text, watermark, signature", // Добавлен негативный промпт
+          num_images: 1,
+          width: 1472,
+          height: 832,
+          alchemy: true,
+          styleUUID: "111dc692-d470-4eec-b791-3475abac4c46",
+          enhancePrompt: false,
+          ...(initImageId && {
+            init_image_id: initImageId,
+            init_strength: 0.5,
+            guidance_scale: 8
+          })
+        };
+
+        const initialResponse = await fetch(GENERATIONS_API_URL, {
+          method: 'POST',
+          headers: {
+            'accept': 'application/json',
+            'authorization': `Bearer ${API_KEY}`,
+            'content-type': 'application/json'
+          },
+          body: JSON.stringify(generationPayload)
+        });
+
+        // !!! Добавлена проверка на initialResponse.ok и обработка ошибок
+        if (!initialResponse.ok) {
+          const errorData = await initialResponse.json();
+          resultDiv.innerHTML = `<div class="result-card">Ошибка при инициации генерации: ${JSON.stringify(errorData.error || errorData, null, 2)}</div>`;
+          console.error('Ошибка при инициации генерации:', errorData);
+          return;
+        }
+
+        const initialData = await initialResponse.json();
+        // !!! Добавлена проверка на наличие generationId
+        if (!initialData || !initialData.sdGenerationJob || !initialData.sdGenerationJob.generationId) {
+          resultDiv.innerHTML = '<div class="result-card">Ошибка: не удалось получить generationId из первого ответа.</div>';
+          return;
+        }
+
+        const generationId = initialData.sdGenerationJob.generationId;
+        resultDiv.innerHTML = `<div class="result-card"><strong>Генерация началась</strong><br>ID: ${generationId}. Ожидаем завершения...</div>`;
+
+        pollInterval = setInterval(async () => {
+          try {
+            const statusResponse = await fetch(`${GENERATIONS_API_URL}/${generationId}`, {
+              method: 'GET',
+              headers: {
+                'accept': 'application/json',
+                'authorization': `Bearer ${API_KEY}`
+              }
+            });
+
+            // !!! Добавлена проверка на statusResponse.ok и обработка ошибок
+            if (!statusResponse.ok) {
+              throw new Error('Ошибка при получении статуса генерации.');
+            }
+
+            const statusData = await statusResponse.json();
+
+            if (statusData && statusData.generations_by_pk && statusData.generations_by_pk.status === 'COMPLETE') {
+              clearInterval(pollInterval);
+
+              const generatedImages = statusData.generations_by_pk.generated_images;
+
+              if (generatedImages && generatedImages.length > 0) {
+                resultDiv.innerHTML = '';
+                generatedImages.forEach((imgData, index) => {
+                  const card = document.createElement('div');
+                  card.className = 'result-card'; // Используем класс result-card
+                  card.innerHTML = `
+                    <div><strong>Результат ${index + 1}</strong></div>
+                    <img src="${imgData.url}" alt="Сгенерированное изображение ${index + 1}" />
+                    <button 
+                      class="download-btn mt-4 inline-block bg-green-500 text-white px-5 py-2 rounded-lg hover:bg-green-600 transition shadow-md"
+                      data-url="${imgData.url}" data-filename="generated_image_${index + 1}.png">
+                      Скачать фото
+                    </button>
+                  `;
+                  resultDiv.appendChild(card);
+                });
+
+                // Добавляем слушатели событий после того, как кнопки созданы
+                document.querySelectorAll('.download-btn').forEach(button => {
+                  button.addEventListener('click', async (event) => {
+                    const imageUrl = event.target.dataset.url;
+                    const filename = event.target.dataset.filename;
+
+                    try {
+                      const response = await fetch(imageUrl);
+                      const blob = await response.blob();
+                      const url = window.URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.style.display = 'none';
+                      a.href = url;
+                      a.download = filename;
+                      document.body.appendChild(a);
+                      a.click();
+                      window.URL.revokeObjectURL(url); // Очищаем URL объекта
+                    } catch (error) {
+                      console.error('Ошибка при скачивании изображения:', error);
+                      alert('Не удалось скачать изображение. Возможно, проблема с CORS или сетью.');
+                    }
+                  });
+                });
+
+              } else {
+                resultDiv.innerHTML = '<div class="result-card">Генерация завершена, но изображений не найдено.</div>';
+              }
+            } else {
+              resultDiv.innerHTML = `<div class="result-card">Генерация в процессе... Статус: <strong>${statusData.generations_by_pk ? statusData.generations_by_pk.status : 'Неизвестен'}</strong></div>`;
+            }
+          } catch (pollErr) {
+            clearInterval(pollInterval);
+            resultDiv.innerHTML = `<div class="result-card">Ошибка при опросе статуса: ${pollErr.message}</div>`;
+          }
+        }, 3000);
+
+      } catch (err) {
+        resultDiv.innerHTML = `<div class="result-card">Общая ошибка: ${err.message}</div>`;
+        if (pollInterval) clearInterval(pollInterval);
+      }
+    });
+  </script>
+
+</body>
+</html>
