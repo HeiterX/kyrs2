@@ -38,9 +38,16 @@
   <div class="bg-white shadow-xl rounded-2xl p-8 max-w-2xl w-full">
     <h2 class="text-2xl font-bold mb-6 text-center">Ответь на вопросы и узнай, кто ты в мире IT</h2>
 
-    <form id="quizForm">
-      <div id="questionContainer">
-              </div>
+    <form id="quizForm">
+      <div class="mb-4">
+        <div class="w-full bg-gray-200 rounded-full h-2.5">
+          <div id="progressBar" class="bg-indigo-600 h-2.5 rounded-full" style="width: 0%"></div>
+        </div>
+        <div id="progressText" class="text-sm text-gray-600 mt-2 text-right"></div>
+      </div>
+
+      <div id="questionContainer">
+              </div>
 
       <div class="mt-6 text-center">
         <button type="button" id="nextBtn" class="bg-indigo-600 text-white px-6 py-2 rounded-xl hover:bg-indigo-700 transition">
@@ -173,15 +180,24 @@
       hr: 0
     };
 
-    const questionContainer = document.getElementById("questionContainer");
-    const nextBtn = document.getElementById("nextBtn");
-    const resultContainer = document.getElementById("resultContainer");
-    const resultText = document.getElementById("resultText");
+    const questionContainer = document.getElementById("questionContainer");
+    const nextBtn = document.getElementById("nextBtn");
+    const resultContainer = document.getElementById("resultContainer");
+    const resultText = document.getElementById("resultText");
+    const progressBar = document.getElementById("progressBar");
+    const progressText = document.getElementById("progressText");
+
+    function updateProgress(index) {
+      const percent = Math.round(((index + 1) / questionsData.length) * 100);
+      progressBar.style.width = `${percent}%`;
+      progressText.textContent = `Вопрос ${index + 1} из ${questionsData.length}`;
+    }
 
     let currentQuestionIndex = 0; // Изменено с `current` для ясности
 
-    function renderQuestion(index) {
-      const q = questionsData[index];
+    function renderQuestion(index) {
+      updateProgress(index);
+      const q = questionsData[index];
       let optionsHtml = '';
       let optionCounter = 0; // Для уникальных id в каждой группе вопросов
       for (const optionText in q.options) {
@@ -257,8 +273,9 @@
       }
     });
 
-    function showResult() {
-      const sortedProfessions = Object.entries(professions)
+    function showResult() {
+      updateProgress(questionsData.length - 1);
+      const sortedProfessions = Object.entries(professions)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 2);
 
