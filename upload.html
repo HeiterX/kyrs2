@@ -54,7 +54,7 @@
 
   <script>
     // ==========================================================
-    // ВСТАВЬТЕ СЮДА ВАШ API-КЛЮЧ LEONARDO AI
+    // ВСТАВЯЕМ СЮДА НАШ API-КЛЮЧ LEONARDO AI
     // Получить ключ можно на сайте Leonardo AI в разделе API.
     const API_KEY = '7b625e89-6de4-4899-8fe5-fcb9bd55173d';  // ОБЯЗАТЕЛЬНО ЗАМЕНИТЕ НА СВОЙ API-КЛЮЧ!
     // ==========================================================
@@ -65,35 +65,26 @@
     // ЭНДПОИНТ ДЛЯ ЗАГРУЗКИ ИЗОБРАЖЕНИЯ
     const UPLOAD_INIT_IMAGE_URL = 'https://cloud.leonardo.ai/api/rest/v1/init-image'; 
 
-    // Переменная для хранения промпта, полученного из localStorage
-    let storedPromptFromTest = '';
+    // Фиксированный промпт
+    const FIXED_PROMPT = "A professional 1C developer working on business automation software. " +
+"Shows a programmer in office environment with 1C:Enterprise interface visible on monitors. " +
+"Detailed business documents, accounting reports and database schemas on the desk. " +
+"Corporate atmosphere, realistic style, professional lighting, high detail.";
 
-    // ---- НОВОЕ: Загружаем промпт из localStorage при загрузке страницы ----
-    document.addEventListener('DOMContentLoaded', () => {
-      const generateBtn = document.getElementById('generateBtn');
-      const resultDiv = document.getElementById('result');
+    document.addEventListener('DOMContentLoaded', () => {
+      const resultDiv = document.getElementById('result');
+      
+      // Всегда показываем готовность к генерации
+      resultDiv.innerHTML = '<div class="result-card">Готово к генерации. Нажмите "Сгенерировать".</div>';
+    });
 
-      storedPromptFromTest = localStorage.getItem('leonardoAiPrompt');
-
-      if (storedPromptFromTest) {
-        resultDiv.innerHTML = '<div class="result-card">Запрос успешно загружен из теста. Нажмите "Сгенерировать".</div>';
-        // Опционально: очистите localStorage после использования, если вам не нужно, чтобы промпт сохранялся при каждом открытии страницы
-        // localStorage.removeItem('leonardoAiPrompt'); 
-      } else {
-        resultDiv.innerHTML = '<div class="result-card">Ошибка: Запрос из теста не найден. Пожалуйста, вернитесь к тесту.</div>';
-        generateBtn.disabled = true; // Деактивируем кнопку, если нет промпта
-        generateBtn.classList.add('opacity-50', 'cursor-not-allowed'); // Добавляем стили для деактивированной кнопки
-      }
-    });
-    // -------------------------------------------------------------------
-
-    document.getElementById('generateBtn').addEventListener('click', async () => {
-      const resultDiv = document.getElementById('result');
-      const imageUploadInput = document.getElementById('imageUpload');
-
-      // Теперь userPrompt берется из переменной storedPromptFromTest
-      const userPrompt = storedPromptFromTest.trim();
-      const imageFile = imageUploadInput.files[0];
+    document.getElementById('generateBtn').addEventListener('click', async () => {
+      const resultDiv = document.getElementById('result');
+      const imageUploadInput = document.getElementById('imageUpload');
+      
+      // Используем фиксированный промпт
+      const userPrompt = FIXED_PROMPT;
+      const imageFile = imageUploadInput.files[0];
 
       // Дополнительная проверка на пустой промпт
       if (!userPrompt) {
@@ -183,23 +174,27 @@
         } else {
           resultDiv.innerHTML = '<div class="result-card">Инициируем текстовую генерацию...</div>';
         }
-
+        
+        // этот рункт отвечает за генерацию фото 
+        
         const generationPayload = {
-          modelId: "aa77f04e-3eec-4034-9c07-d0f619684628",
+          modelId: "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
           contrast: 3.5,
-          prompt: userPrompt, // Используем промпт, полученный из localStorage
-          negative_prompt: "blurry, low quality, deformed, ugly, disfigured, poor quality, bad anatomy, bad facial features, extra limbs, missing limbs, text, watermark, signature", // Добавлен негативный промпт
+          prompt: userPrompt, // Используем фиксированный промпт
+          negative_prompt: "blurry, cartoonish, unrealistic, woman, text, watermark, signature, deformed hands, poor quality, bad anatomy, extra limbs",
+
           num_images: 1,
-          width: 1472,
-          height: 832,
-          alchemy: true,
-          styleUUID: "111dc692-d470-4eec-b791-3475abac4c46",
-          enhancePrompt: false,
-          ...(initImageId && {
-            init_image_id: initImageId,
-            init_strength: 0.5,
-            guidance_scale: 8
+          width: 1024,
+          height: 1024,
+          alchemy: true,
+          styleUUID: "111dc692-d470-4eec-b791-3475abac4c46",
+          enhancePrompt: false,
+          ...(initImageId && {
+            init_image_id: initImageId,
+            init_strength: 0.5,
+            guidance_scale: 10
           })
+          
         };
 
         const initialResponse = await fetch(GENERATIONS_API_URL, {
